@@ -1,7 +1,9 @@
 @echo off
+setlocal enabledelayedexpansion
 REM ============================================================
 REM run_api.bat
-REM Double-click this file to launch the FastAPI prediction server.
+REM Double-click this file (from Explorer, cmd, or Anaconda Prompt)
+REM to launch the FastAPI prediction server.
 REM Assumes you already ran the notebooks (01-06) at least once,
 REM so models\clustering_pipeline.joblib exists.
 REM ============================================================
@@ -22,20 +24,43 @@ if not exist "models\clustering_pipeline.joblib" (
     exit /b 1
 )
 
+REM --- Find conda even when this is opened from plain cmd/Explorer,
+REM     where conda usually isn't on PATH. We try, in order:
+REM     1. conda already on PATH (works if opened from Anaconda Prompt)
+REM     2. common per-user and system-wide Anaconda/Miniconda install folders
+set "CONDA_ROOT="
+
 where conda >nul 2>nul
-if errorlevel 1 (
-    echo [ERROR] "conda" was not found on your PATH.
-    echo Open this file from an Anaconda Prompt instead.
-    echo.
-    pause
-    exit /b 1
+if not errorlevel 1 goto :activate
+
+if exist "%USERPROFILE%\anaconda3\Scripts\activate.bat" set "CONDA_ROOT=%USERPROFILE%\anaconda3" & goto :activate
+if exist "%USERPROFILE%\miniconda3\Scripts\activate.bat" set "CONDA_ROOT=%USERPROFILE%\miniconda3" & goto :activate
+if exist "%LOCALAPPDATA%\anaconda3\Scripts\activate.bat" set "CONDA_ROOT=%LOCALAPPDATA%\anaconda3" & goto :activate
+if exist "%LOCALAPPDATA%\miniconda3\Scripts\activate.bat" set "CONDA_ROOT=%LOCALAPPDATA%\miniconda3" & goto :activate
+if exist "C:\ProgramData\anaconda3\Scripts\activate.bat" set "CONDA_ROOT=C:\ProgramData\anaconda3" & goto :activate
+if exist "C:\ProgramData\miniconda3\Scripts\activate.bat" set "CONDA_ROOT=C:\ProgramData\miniconda3" & goto :activate
+if exist "C:\anaconda3\Scripts\activate.bat" set "CONDA_ROOT=C:\anaconda3" & goto :activate
+if exist "C:\miniconda3\Scripts\activate.bat" set "CONDA_ROOT=C:\miniconda3" & goto :activate
+
+echo [ERROR] Could not find a conda installation automatically.
+echo Either open this file from an Anaconda Prompt instead, or
+echo edit this .bat file and add your conda install folder to the
+echo list of paths it checks near the top of the file.
+echo.
+pause
+exit /b 1
+
+:activate
+echo Activating conda environment: ecomm-clustering
+if defined CONDA_ROOT (
+    call "%CONDA_ROOT%\Scripts\activate.bat" ecomm-clustering
+) else (
+    call conda activate ecomm-clustering
 )
 
-echo Activating conda environment: ecomm-clustering
-call conda activate ecomm-clustering
 if errorlevel 1 (
     echo [ERROR] Could not activate environment "ecomm-clustering".
-    echo Create it first:
+    echo Create it first from an Anaconda Prompt:
     echo     conda create -n ecomm-clustering python=3.11
     echo     conda activate ecomm-clustering
     echo     pip install -r requirements.txt
